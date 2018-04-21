@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>libcreate</name>
-  <version>1.6.0</version>
+  <version>1.6.1</version>
   <description>C++ library for interfacing with iRobot's Create 1 and Create 2</description>
 
   <maintainer email="jperron@sfu.ca">Jacob Perron</maintainer>
@@ -16,13 +16,13 @@
 
   <buildtool_depend>cmake</buildtool_depend>
 
-  <build_depend>git</build_depend>
-
   <depend>boost</depend>
 
   <exec_depend>catkin</exec_depend>
 
   <doc_depend>doxygen</doc_depend>
+
+  <test_depend>gtest</test_depend>
 
   <export>
     <build_type>cmake</build_type>
