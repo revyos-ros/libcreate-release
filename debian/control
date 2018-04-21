@@ -1,0 +1,12 @@
+Source: ros-lunar-libcreate
+Section: misc
+Priority: extra
+Maintainer: Jacob Perron <jperron@sfu.ca>
+Build-Depends: debhelper (>= 9.0.0), cmake, libboost-all-dev, libgtest-dev
+Homepage: http://wiki.ros.org/libcreate
+Standards-Version: 3.9.2
+
+Package: ros-lunar-libcreate
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libboost-all-dev, ros-lunar-catkin
+Description: C++ library for interfacing with iRobot's Create 1 and Create 2
