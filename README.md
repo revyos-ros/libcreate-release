@@ -1,3 +1,26 @@
+## libcreate (melodic) - 2.0.0-1
+
+The packages in the `libcreate` repository were released into the `melodic` distro by running `/usr/bin/bloom-release -r melodic -t melodic libcreate` on `Mon, 02 Sep 2019 21:47:06 -0000`
+
+The `libcreate` package was released.
+
+Version of package(s) in repository `libcreate`:
+
+- upstream repository: https://github.com/AutonomyLab/libcreate.git
+- release repository: unknown
+- rosdistro version: `null`
+- old version: `null`
+- new version: `2.0.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.8.0`
+- catkin_pkg version: `0.4.12`
+- rosdep version: `0.15.2`
+- rosdistro version: `0.7.4`
+- vcstools version: `0.1.42`
+
+
 ## libcreate (lunar) - 1.6.1-0
 
 The packages in the `libcreate` repository were released into the `lunar` distro by running `/usr/bin/bloom-release --rosdistro lunar --track lunar libcreate` on `Sat, 21 Apr 2018 08:59:55 -0000`
