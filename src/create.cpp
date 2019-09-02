@@ -15,8 +15,6 @@ namespace create {
 
   namespace ublas = boost::numeric::ublas;
 
-  // TODO: Handle SIGINT to do clean disconnect
-
   void Create::init() {
     mainMotorPower = 0;
     sideMotorPower = 0;
@@ -66,15 +64,15 @@ namespace create {
   }
 
   Create::Matrix Create::addMatrices(const Matrix &A, const Matrix &B) const {
-    int rows = A.size1();
-    int cols = A.size2();
+    size_t rows = A.size1();
+    size_t cols = A.size2();
 
     assert(rows == B.size1());
     assert(cols == B.size2());
 
     Matrix C(rows, cols);
-    for (int i = 0; i < rows; i++) {
-      for (int j = 0; j < cols; j++) {
+    for (size_t i = 0u; i < rows; i++) {
+      for (size_t j = 0u; j < cols; j++) {
         const float a = A(i, j);
         const float b = B(i, j);
         if (util::willFloatOverflow(a, b)) {
@@ -96,13 +94,13 @@ namespace create {
         prevTicksLeft = GET_DATA(ID_LEFT_ENC);
         prevTicksRight = GET_DATA(ID_RIGHT_ENC);
       }
-      prevOnDataTime = util::getTimestamp();
+      prevOnDataTime = std::chrono::system_clock::now();
       firstOnData = false;
     }
 
     // Get current time
-    util::timestamp_t curTime = util::getTimestamp();
-    float dt = (curTime - prevOnDataTime) / 1000000.0;
+    auto curTime = std::chrono::system_clock::now();
+    float dt = static_cast<std::chrono::duration<float>>(curTime - prevOnDataTime).count();
     float deltaDist, deltaX, deltaY, deltaYaw, leftWheelDist, rightWheelDist, wheelDistDiff;
 
     // Protocol versions 1 and 2 use distance and angle fields for odometry
@@ -347,8 +345,8 @@ namespace create {
 
   bool Create::setDate(const DayOfWeek& day, const uint8_t& hour, const uint8_t& min) const {
     if (day < 0 || day > 6 ||
-        hour < 0 || hour > 23 ||
-        min < 0 || min > 59)
+        hour > 23 ||
+        min > 59)
       return false;
 
     uint8_t cmd[4] = { OC_DATE, day, hour, min };
@@ -364,16 +362,16 @@ namespace create {
     int16_t radius_mm = roundf(radius * 1000);
 
     // Bound radius if not a special case
-    if (radius_mm != 32768 && radius_mm != 32767 &&
+    if (radius_mm != -32768 && radius_mm != 32767 &&
         radius_mm != -1 && radius_mm != 1) {
       BOUND(radius_mm, -util::MAX_RADIUS * 1000, util::MAX_RADIUS * 1000);
     }
 
     uint8_t cmd[5] = { OC_DRIVE,
-                       vel_mm >> 8,
-                       vel_mm & 0xff,
-                       radius_mm >> 8,
-                       radius_mm & 0xff
+                       static_cast<uint8_t>(vel_mm >> 8),
+                       static_cast<uint8_t>(vel_mm & 0xff),
+                       static_cast<uint8_t>(radius_mm >> 8),
+                       static_cast<uint8_t>(radius_mm & 0xff)
                      };
 
     return serial->send(cmd, 5);
@@ -389,10 +387,10 @@ namespace create {
       int16_t rightCmd = roundf(boundedRightVel * 1000);
 
       uint8_t cmd[5] = { OC_DRIVE_DIRECT,
-                         rightCmd >> 8,
-                         rightCmd & 0xff,
-                         leftCmd >> 8,
-                         leftCmd & 0xff
+                         static_cast<uint8_t>(rightCmd >> 8),
+                         static_cast<uint8_t>(rightCmd & 0xff),
+                         static_cast<uint8_t>(leftCmd >> 8),
+                         static_cast<uint8_t>(leftCmd & 0xff)
                        };
       return serial->send(cmd, 5);
     } else {
@@ -439,11 +437,11 @@ namespace create {
     int16_t rightPwm = roundf(rightWheel * PWM_COUNTS);
 
     uint8_t cmd[5] = { OC_DRIVE_PWM,
-                        rightPwm >> 8,
-                        rightPwm & 0xff,
-                        leftPwm >> 8,
-                        leftPwm & 0xff
-                       };
+                       static_cast<uint8_t>(rightPwm >> 8),
+                       static_cast<uint8_t>(rightPwm & 0xff),
+                       static_cast<uint8_t>(leftPwm >> 8),
+                       static_cast<uint8_t>(leftPwm & 0xff)
+                     };
 
     return serial->send(cmd, 5);
   }
@@ -466,10 +464,10 @@ namespace create {
     vacuumMotorPower = roundf(vacuum * 127);
 
     uint8_t cmd[4] = { OC_MOTORS_PWM,
-                        mainMotorPower,
-                        sideMotorPower,
-                        vacuumMotorPower
-                      };
+                       mainMotorPower,
+                       sideMotorPower,
+                       vacuumMotorPower
+                     };
 
     return serial->send(cmd, 4);
   }
@@ -489,10 +487,10 @@ namespace create {
   bool Create::updateLEDs() {
     uint8_t LEDByte = debrisLED + spotLED + dockLED + checkLED;
     uint8_t cmd[4] = { OC_LEDS,
-                        LEDByte,
-                        powerLED,
-                        powerLEDIntensity
-                      };
+                       LEDByte,
+                       powerLED,
+                       powerLEDIntensity
+                     };
 
     return serial->send(cmd, 4);
   }
@@ -563,7 +561,7 @@ namespace create {
                           const float* durations) const {
     int i, j;
     uint8_t duration;
-    uint8_t cmd[2 * songLength + 3];
+    std::vector<uint8_t> cmd(2 * songLength + 3);
     cmd[0] = OC_SONG;
     cmd[1] = songNumber;
     cmd[2] = songLength;
@@ -577,11 +575,11 @@ namespace create {
       j++;
     }
 
-    return serial->send(cmd, 2 * songLength + 3);
+    return serial->send(cmd.data(), cmd.size());
   }
 
   bool Create::playSong(const uint8_t& songNumber) const {
-    if (songNumber < 0 || songNumber > 4)
+    if (songNumber > 4)
       return false;
     uint8_t cmd[2] = { OC_PLAY, songNumber };
     return serial->send(cmd, 2);
@@ -590,6 +588,26 @@ namespace create {
   bool Create::isWheeldrop() const {
     if (data->isValidPacketID(ID_BUMP_WHEELDROP)) {
       return (GET_DATA(ID_BUMP_WHEELDROP) & 0x0C) != 0;
+    }
+    else {
+      CERR("[create::Create] ", "Wheeldrop sensor not supported!");
+      return false;
+    }
+  }
+
+  bool Create::isLeftWheeldrop() const {
+    if (data->isValidPacketID(ID_BUMP_WHEELDROP)) {
+      return (GET_DATA(ID_BUMP_WHEELDROP) & 0x08) != 0;
+    }
+    else {
+      CERR("[create::Create] ", "Wheeldrop sensor not supported!");
+      return false;
+    }
+  }
+
+  bool Create::isRightWheeldrop() const {
+    if (data->isValidPacketID(ID_BUMP_WHEELDROP)) {
+      return (GET_DATA(ID_BUMP_WHEELDROP) & 0x04) != 0;
     }
     else {
       CERR("[create::Create] ", "Wheeldrop sensor not supported!");
@@ -639,6 +657,46 @@ namespace create {
     }
     else {
       CERR("[create::Create] ", "Cliff sensors not supported!");
+      return false;
+    }
+  }
+
+  bool Create::isCliffLeft() const {
+    if (data->isValidPacketID(ID_CLIFF_LEFT)) {
+      return GET_DATA(ID_CLIFF_LEFT) == 1;
+    }
+    else {
+      CERR("[create::Create] ", "Left cliff sensors not supported!");
+      return false;
+    }
+  }
+
+  bool Create::isCliffFrontLeft() const {
+    if (data->isValidPacketID(ID_CLIFF_FRONT_LEFT)) {
+      return GET_DATA(ID_CLIFF_FRONT_LEFT) == 1;
+    }
+    else {
+      CERR("[create::Create] ", "Front left cliff sensors not supported!");
+      return false;
+    }
+  }
+
+  bool Create::isCliffRight() const {
+    if (data->isValidPacketID(ID_CLIFF_RIGHT)) {
+      return GET_DATA(ID_CLIFF_RIGHT) == 1;
+    }
+    else {
+      CERR("[create::Create] ", "Rightt cliff sensors not supported!");
+      return false;
+    }
+  }
+
+  bool Create::isCliffFrontRight() const {
+    if (data->isValidPacketID(ID_CLIFF_FRONT_RIGHT)) {
+      return GET_DATA(ID_CLIFF_FRONT_RIGHT) == 1;
+    }
+    else {
+      CERR("[create::Create] ", "Front right cliff sensors not supported!");
       return false;
     }
   }
@@ -696,7 +754,6 @@ namespace create {
   ChargingState Create::getChargingState() const {
     if (data->isValidPacketID(ID_CHARGE_STATE)) {
       uint8_t chargeState = GET_DATA(ID_CHARGE_STATE);
-      assert(chargeState >= 0);
       assert(chargeState <= 5);
       return (ChargingState) chargeState;
     }

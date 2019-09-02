@@ -6,10 +6,11 @@
 namespace create {
 
   Serial::Serial(boost::shared_ptr<Data> d) :
-    data(d),
+    signals(io, SIGINT, SIGTERM),
     port(io),
-    isReading(false),
     dataReady(false),
+    isReading(false),
+    data(d),
     corruptPackets(0),
     totalPackets(0) {
   }
@@ -18,11 +19,28 @@ namespace create {
     disconnect();
   }
 
+  void Serial::signalHandler(const boost::system::error_code& error, int signal_number) {
+    if (!error) {
+      if (connected()) {
+        // Ensure not in Safe/Full modes
+        sendOpcode(OC_START);
+        // Stop OI
+        sendOpcode(OC_STOP);
+        exit(signal_number);
+      }
+    }
+  }
+
   bool Serial::connect(const std::string& portName, const int& baud, boost::function<void()> cb) {
     using namespace boost::asio;
     port.open(portName);
     port.set_option(serial_port::baud_rate(baud));
+    port.set_option(serial_port::character_size(8));
+    port.set_option(serial_port::parity(serial_port::parity::none));
+    port.set_option(serial_port::stop_bits(serial_port::stop_bits::one));
     port.set_option(serial_port::flow_control(serial_port::flow_control::none));
+
+    signals.async_wait(boost::bind(&Serial::signalHandler, this, _1, _2));
 
     usleep(1000000);
 
@@ -72,7 +90,7 @@ namespace create {
     // Start continuously reading one byte at a time
     boost::asio::async_read(port,
                             boost::asio::buffer(&byteRead, 1),
-                            boost::bind(&Serial::onData, this, _1, _2));
+                            boost::bind(&Serial::onData, shared_from_this(), _1, _2));
 
     ioThread = boost::thread(boost::bind(&boost::asio::io_service::run, &io));
 
@@ -145,7 +163,7 @@ namespace create {
     // Read the next byte
     boost::asio::async_read(port,
                             boost::asio::buffer(&byteRead, 1),
-                            boost::bind(&Serial::onData, this, _1, _2));
+                            boost::bind(&Serial::onData, shared_from_this(), _1, _2));
   }
 
   bool Serial::send(const uint8_t* bytes, unsigned int numBytes) {

@@ -34,6 +34,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include <boost/shared_ptr.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
+#include <chrono>
 #include <string>
 #include <unistd.h>
 
@@ -79,7 +80,7 @@ namespace create {
       float totalLeftDist;
       float totalRightDist;
       bool firstOnData;
-      util::timestamp_t prevOnDataTime;
+      std::chrono::time_point<std::chrono::system_clock> prevOnDataTime;
 
       Matrix poseCovar;
 
@@ -337,6 +338,16 @@ namespace create {
       bool isWheeldrop() const;
 
       /**
+       * \return true if a left wheeldrop is detected, false otherwise.
+       */
+      bool isLeftWheeldrop() const;
+
+      /**
+       * \return true if a right wheeldrop is detected, false otherwise.
+       */
+      bool isRightWheeldrop() const;
+
+      /**
        * \return true if left bumper is pressed, false otherwise.
        */
       bool isLeftBumper() const;
@@ -355,6 +366,26 @@ namespace create {
        * \return true if there are any cliff detections, false otherwise.
        */
       bool isCliff() const;
+
+      /**
+       * \return true if the left sensor detects a cliff, false otherwise.
+       */
+      bool isCliffLeft() const;
+
+      /**
+       * \return true if the front left sensor detects a cliff, false otherwise.
+       */
+      bool isCliffFrontLeft() const;
+
+      /**
+       * \return true if the right sensor detects a cliff, false otherwise.
+       */
+      bool isCliffRight() const;
+
+      /**
+       * \return true if the front right sensor detects a cliff, false otherwise.
+       */
+      bool isCliffFrontRight() const;
 
       /**
        * \return true if there is a virtual wall signal is being received.

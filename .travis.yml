@@ -1,10 +1,16 @@
 sudo: required
-dist: trusty
 
 language: cpp
 
 compiler:
   - gcc
+
+matrix:
+  include:
+    - os: linux
+      dist: xenial
+    - os: linux
+      dist: bionic
 
 before_install:
   - sudo apt-get update -qq
@@ -17,6 +23,6 @@ before_install:
 script:
   - cd ${TRAVIS_BUILD_DIR}
   - cmake --version
-  - cmake .
+  - cmake -DCMAKE_CXX_FLAGS="-Werror" .
   - make
   - make test

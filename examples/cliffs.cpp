@@ -1,9 +1,9 @@
 /**
 Software License Agreement (BSD)
 
-\file      battery_level.cpp
-\authors   Jacob Perron <jperron@sfu.ca>
-\copyright Copyright (c) 2018, Autonomy Lab (Simon Fraser University), All rights reserved.
+\file      cliffs.cpp
+\authors   Jacob Perron <jacobmperron@gmail.com>
+\copyright Copyright (c) 2019, Jacob Perron, All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -12,9 +12,9 @@ modification, are permitted provided that the following conditions are met:
  * Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the
    documentation and/or other materials provided with the distribution.
- * Neither the name of Autonomy Lab nor the names of its contributors may
-   be used to endorse or promote products derived from this software without
-   specific prior written permission.
+ * Neither the name of the copyright holder nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -50,8 +50,9 @@ int main(int argc, char** argv) {
   create::Create robot(model);
 
   // Connect to robot
-  if (robot.connect(port, baud))
+  if (robot.connect(port, baud)) {
     std::cout << "Connected to robot" << std::endl;
+  }
   else {
     std::cout << "Failed to connect to robot on port " << port.c_str() << std::endl;
     return 1;
@@ -60,18 +61,25 @@ int main(int argc, char** argv) {
   // Switch to Full mode
   robot.setMode(create::MODE_FULL);
 
-  // Get battery capacity (max charge)
-  const float battery_capacity = robot.getBatteryCapacity();
-
-  float battery_charge = 0.0f;
   while (true) {
-    // Get battery charge
-    battery_charge = robot.getBatteryCharge();
+    // Get cliff status
+    const bool cliff_left = robot.isCliffLeft();
+    const bool cliff_front_left = robot.isCliffFrontLeft();
+    const bool cliff_front_right = robot.isCliffFrontRight();
+    const bool cliff_right = robot.isCliffRight();
 
-    // Print battery percentage
-    std::cout << "\rBattery level: " << (battery_charge / battery_capacity) * 100.0 << "%";
+    // Print status
+    std::cout << "\rCliffs (left to right): [ " <<
+      cliff_left <<
+      ", " <<
+      cliff_front_left <<
+      ", " <<
+      cliff_front_right <<
+      ", " <<
+      cliff_right <<
+      " ]";
 
-    usleep(100000);  // 10 Hz
+    usleep(10000);  // 10 Hz
   }
 
   return 0;

@@ -40,16 +40,18 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <boost/thread/condition_variable.hpp>
 #include <boost/function.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/enable_shared_from_this.hpp>
 
 #include "create/data.h"
 #include "create/types.h"
 #include "create/util.h"
 
 namespace create {
-  class Serial {
+  class Serial : public boost::enable_shared_from_this<Serial> {
 
     protected:
       boost::asio::io_service io;
+      boost::asio::signal_set signals;
       boost::asio::serial_port port;
 
     private:
@@ -60,7 +62,6 @@ namespace create {
       bool isReading;
       bool firstRead;
       uint8_t byteRead;
-
 
       // Callback executed when data arrives from Create
       void onData(const boost::system::error_code& e, const std::size_t& size);
@@ -79,6 +80,7 @@ namespace create {
       virtual bool startSensorStream() = 0;
       virtual void processByte(uint8_t byteRead) = 0;
 
+      void signalHandler(const boost::system::error_code& error, int signal_number);
       // Notifies main thread that data is fresh and makes the user callback
       void notifyDataReady();
 
