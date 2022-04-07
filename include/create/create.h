@@ -32,11 +32,12 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifndef CREATE_H
 #define CREATE_H
 
-#include <boost/shared_ptr.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <chrono>
+#include <memory>
 #include <string>
 #include <unistd.h>
+#include <deque>
 
 #include "create/serial_stream.h"
 #include "create/serial_query.h"
@@ -80,7 +81,9 @@ namespace create {
       float totalLeftDist;
       float totalRightDist;
       bool firstOnData;
-      std::chrono::time_point<std::chrono::system_clock> prevOnDataTime;
+      std::chrono::time_point<std::chrono::steady_clock> prevOnDataTime;
+      std::deque<float> dtHistory;
+      uint8_t dtHistoryLength;
 
       Matrix poseCovar;
 
@@ -89,15 +92,19 @@ namespace create {
       float requestedLeftVel;
       float requestedRightVel;
 
-      void init();
+      void init(bool install_signal_handler);
       // Add two matrices and handle overflow case
       Matrix addMatrices(const Matrix &A, const Matrix &B) const;
       void onData();
       bool updateLEDs();
 
+      // Flag to enable/disable the workaround for some 6xx incorrectly reporting OI mode
+      // https://github.com/AutonomyLab/create_robot/issues/64
+      bool modeReportWorkaround;
+
     protected:
-      boost::shared_ptr<create::Data> data;
-      boost::shared_ptr<create::Serial> serial;
+      std::shared_ptr<create::Data> data;
+      std::shared_ptr<create::Serial> serial;
 
     public:
       /**
@@ -106,8 +113,10 @@ namespace create {
        * Calling this constructor Does not attempt to establish a serial connection to the robot.
        *
        * \param model the type of the robot. See RobotModel to determine the value for your robot.
-        */
-      Create(RobotModel model = RobotModel::CREATE_2);
+       * \param install_signal_handler if true, then register a signal handler to disconnect from
+       *   the robot on SIGINT or SIGTERM.
+       */
+      Create(RobotModel model = RobotModel::CREATE_2, bool install_signal_handler = true);
 
       /**
        * \brief Attempts to establish serial connection to Create.
@@ -116,8 +125,10 @@ namespace create {
        * \param baud rate to communicate with Create. Typically,
        *        115200 for Create 2 and 57600 for Create 1.
        * \param model type of robot. See RobotModel to determine the value for your robot.
+       * \param install_signal_handler if true, then register a signal handler to disconnect from
+       *   the robot on SIGINT or SIGTERM.
        */
-      Create(const std::string& port, const int& baud, RobotModel model = RobotModel::CREATE_2);
+      Create(const std::string& port, const int& baud, RobotModel model = RobotModel::CREATE_2, bool install_signal_handler = true);
 
       /**
        * \brief Attempts to disconnect from serial.
@@ -279,15 +290,15 @@ namespace create {
       /**
        * \brief Set the four 7-segment display digits from left to right.
        *
-       * \todo This function is not yet implemented refer to https://github.com/AutonomyLab/libcreate/issues/7 
+       * \todo This function is not yet implemented refer to https://github.com/AutonomyLab/libcreate/issues/7
        * \param segments to enable (true) or disable (false).
        *        The size of segments should be less than 29.
        *        The ordering of segments is left to right, top to bottom for each digit:
        *
        *     <pre>
-                 0           7             14            21 
-               |‾‾‾|       |‾‾‾|         |‾‾‾|         |‾‾‾|  
-             1 |___| 2   8 |___| 9    15 |___| 16   22 |___| 23 
+                 0           7             14            21
+               |‾‾‾|       |‾‾‾|         |‾‾‾|         |‾‾‾|
+             1 |___| 2   8 |___| 9    15 |___| 16   22 |___| 23
                | 3 |       | 10|         | 17|         | 24|
              4 |___| 5   11|___| 12   18 |___| 19   25 |___| 26
                  6           13            20            27
@@ -331,6 +342,14 @@ namespace create {
        * \return true if successful, false otherwise
        */
       bool playSong(const uint8_t& songNumber) const;
+
+      /**
+       * \brief Set dtHistoryLength parameter.
+       * Used to configure the size of the buffer for calculating average time delta (dt).
+       * between onData calls, which in turn is used for velocity calculation.
+       * \param dtHistoryLength number of historical samples to use for calculating average dt.
+       */
+      void setDtHistoryLength(const uint8_t& dtHistoryLength);
 
       /**
        * \return true if a left or right wheeldrop is detected, false otherwise.
@@ -658,6 +677,20 @@ namespace create {
        * \return total number of serial packets.
        */
       uint64_t getTotalPackets() const;
+
+      /**
+       * \brief Enable or disable the mode reporting workaround.
+       * Some Roomba 6xx robots incorrectly report the OI mode in their sensor streams. Enabling the workaround
+       * will cause libcreate to decrement the reported OI mode in the sensor stream by 1.
+       * See https://github.com/AutonomyLab/create_robot/issues/64
+       */
+      void setModeReportWorkaround(const bool& enable);
+
+      /**
+       * \return true if the mode reporting workaround is enabled, false otherwise.
+       */
+      bool getModeReportWorkaround() const;
+
   };  // end Create class
 
 }  // namespace create

@@ -1,8 +1,7 @@
-#include <boost/bind.hpp>
-#include <boost/make_shared.hpp>
 #include <iostream>
 #include <cmath>
 #include <ctime>
+#include <memory>
 #include <assert.h>
 
 #include "create/create.h"
@@ -15,7 +14,7 @@ namespace create {
 
   namespace ublas = boost::numeric::ublas;
 
-  void Create::init() {
+  void Create::init(bool install_signal_handler) {
     mainMotorPower = 0;
     sideMotorPower = 0;
     vacuumMotorPower = 0;
@@ -42,20 +41,25 @@ namespace create {
     poseCovar = Matrix(3, 3, 0.0);
     requestedLeftVel = 0;
     requestedRightVel = 0;
-    data = boost::shared_ptr<Data>(new Data(model.getVersion()));
+    dtHistoryLength = 100;
+    modeReportWorkaround = false;
+    data = std::shared_ptr<Data>(new Data(model.getVersion()));
     if (model.getVersion() == V_1) {
-      serial = boost::make_shared<SerialQuery>(data);
+      serial = std::make_shared<SerialQuery>(data, install_signal_handler);
     } else {
-      serial = boost::make_shared<SerialStream>(data);
+      serial = std::make_shared<SerialStream>(
+        data, create::util::STREAM_HEADER, install_signal_handler);
     }
   }
 
-  Create::Create(RobotModel m) : model(m) {
-    init();
+  Create::Create(RobotModel m, bool install_signal_handler) : model(m) {
+    init(install_signal_handler);
   }
 
-  Create::Create(const std::string& dev, const int& baud, RobotModel m) : model(m) {
-    init();
+  Create::Create(const std::string& dev, const int& baud, RobotModel m, bool install_signal_handler)
+    : model(m)
+  {
+    init(install_signal_handler);
     serial->connect(dev, baud);
   }
 
@@ -94,17 +98,23 @@ namespace create {
         prevTicksLeft = GET_DATA(ID_LEFT_ENC);
         prevTicksRight = GET_DATA(ID_RIGHT_ENC);
       }
-      prevOnDataTime = std::chrono::system_clock::now();
+      prevOnDataTime = std::chrono::steady_clock::now();
       firstOnData = false;
     }
 
     // Get current time
-    auto curTime = std::chrono::system_clock::now();
+    auto curTime = std::chrono::steady_clock::now();
     float dt = static_cast<std::chrono::duration<float>>(curTime - prevOnDataTime).count();
-    float deltaDist, deltaX, deltaY, deltaYaw, leftWheelDist, rightWheelDist, wheelDistDiff;
+    float deltaDist = 0.0f;
+    float deltaX = 0.0f;
+    float deltaY = 0.0f;
+    float deltaYaw = 0.0f;
+    float leftWheelDist = 0.0f;
+    float rightWheelDist = 0.0f;
+    float wheelDistDiff = 0.0f;
 
     // Protocol versions 1 and 2 use distance and angle fields for odometry
-    int16_t angleField;
+    int16_t angleField = 0;
     if (model.getVersion() <= V_2) {
       // This is a standards compliant way of doing unsigned to signed conversion
       uint16_t distanceRaw = GET_DATA(ID_DISTANCE);
@@ -168,8 +178,22 @@ namespace create {
       deltaYaw = wheelDistDiff / model.getAxleLength();
     }
 
-    measuredLeftVel = leftWheelDist / dt;
-    measuredRightVel = rightWheelDist / dt;
+    // determine average dt over window
+    dtHistory.push_front(dt);
+
+    if (dtHistory.size() > dtHistoryLength){
+      dtHistory.pop_back();
+    }
+
+    float dtHistorySum = 0;
+    for (auto it = dtHistory.cbegin(); it != dtHistory.cend(); ++it)
+    {
+      dtHistorySum += *it;
+    }
+    auto dtAverage = dtHistorySum / dtHistory.size();
+
+    measuredLeftVel = leftWheelDist / dtAverage;
+    measuredRightVel = rightWheelDist / dtAverage;
 
     // Moving straight
     if (fabs(wheelDistDiff) < util::EPS) {
@@ -184,10 +208,10 @@ namespace create {
     totalLeftDist += leftWheelDist;
     totalRightDist += rightWheelDist;
 
-    if (fabs(dt) > util::EPS) {
-      vel.x = deltaDist / dt;
+    if (fabs(dtAverage) > util::EPS) {
+      vel.x = deltaDist / dtAverage;
       vel.y = 0.0;
-      vel.yaw = deltaYaw / dt;
+      vel.yaw = deltaYaw / dtAverage;
     } else {
       vel.x = 0.0;
       vel.y = 0.0;
@@ -273,7 +297,7 @@ namespace create {
     float maxWait = 30; // seconds
     float retryInterval = 5; //seconds
     time(&start);
-    while (!serial->connect(port, baud, boost::bind(&Create::onData, this)) && !timeout) {
+    while (!serial->connect(port, baud, std::bind(&Create::onData, this)) && !timeout) {
       time(&now);
       if (difftime(now, start) > maxWait) {
         timeout = true;
@@ -304,7 +328,7 @@ namespace create {
       // Switch to safe mode (required for compatibility with V_1)
       if (!(serial->sendOpcode(OC_START) && serial->sendOpcode(OC_CONTROL))) return false;
     }
-    bool ret;
+    bool ret = false;
     switch (mode) {
       case MODE_OFF:
         if (model.getVersion() == V_2) {
@@ -463,6 +487,15 @@ namespace create {
     sideMotorPower = roundf(side * 127);
     vacuumMotorPower = roundf(vacuum * 127);
 
+    if (model.getVersion() == V_1) {
+        uint8_t cmd[2] = { OC_MOTORS,
+                           static_cast<uint8_t>((side != 0.0 ? 1 : 0) |
+                                     (vacuum != 0.0 ? 2 : 0) |
+                                     (main != 0.0 ? 4 : 0))
+                         };
+        return serial->send(cmd, 2);
+    }
+
     uint8_t cmd[4] = { OC_MOTORS_PWM,
                        mainMotorPower,
                        sideMotorPower,
@@ -473,15 +506,15 @@ namespace create {
   }
 
   bool Create::setMainMotor(const float& main) {
-    return setAllMotors(main, sideMotorPower, vacuumMotorPower);
+    return setAllMotors(main, static_cast<float>(sideMotorPower) / 127.0, static_cast<float>(vacuumMotorPower) / 127.0);
   }
 
   bool Create::setSideMotor(const float& side) {
-    return setAllMotors(mainMotorPower, side, vacuumMotorPower);
+    return setAllMotors(static_cast<float>(mainMotorPower) / 127.0, side, static_cast<float>(vacuumMotorPower) / 127.0);
   }
 
   bool Create::setVacuumMotor(const float& vacuum) {
-    return setAllMotors(mainMotorPower, sideMotorPower, vacuum);
+    return setAllMotors(static_cast<float>(mainMotorPower) / 127.0, static_cast<float>(sideMotorPower) / 127.0, vacuum);
   }
 
   bool Create::updateLEDs() {
@@ -583,6 +616,10 @@ namespace create {
       return false;
     uint8_t cmd[2] = { OC_PLAY, songNumber };
     return serial->send(cmd, 2);
+  }
+
+  void Create::setDtHistoryLength(const uint8_t& dtHistoryLength) {
+    this->dtHistoryLength = dtHistoryLength;
   }
 
   bool Create::isWheeldrop() const {
@@ -1027,6 +1064,36 @@ namespace create {
     }
   }
 
+  bool Create::isSideBrushOvercurrent() const {
+    if (data->isValidPacketID(ID_OVERCURRENTS)) {
+      return (GET_DATA(ID_OVERCURRENTS) & 0x01) != 0;
+    }
+    else {
+      CERR("[create::Create] ", "Overcurrent sensor not supported!");
+      return false;
+    }
+  }
+
+  bool Create::isMainBrushOvercurrent() const {
+    if (data->isValidPacketID(ID_OVERCURRENTS)) {
+      return (GET_DATA(ID_OVERCURRENTS) & 0x04) != 0;
+    }
+    else {
+      CERR("[create::Create] ", "Overcurrent sensor not supported!");
+      return false;
+    }
+  }
+
+  bool Create::isWheelOvercurrent() const {
+    if (data->isValidPacketID(ID_OVERCURRENTS)) {
+      return (GET_DATA(ID_OVERCURRENTS) & 0x18) != 0;
+    }
+    else {
+      CERR("[create::Create] ", "Overcurrent sensor not supported!");
+      return false;
+    }
+  }
+
   float Create::getLeftWheelDistance() const {
     return totalLeftDist;
   }
@@ -1051,10 +1118,23 @@ namespace create {
     return requestedRightVel;
   }
 
+  void Create::setModeReportWorkaround(const bool& enable) {
+    modeReportWorkaround = enable;
+  }
+
+  bool Create::getModeReportWorkaround() const {
+    return modeReportWorkaround;
+  }
+
   create::CreateMode Create::getMode() {
     if (data->isValidPacketID(ID_OI_MODE)) {
-      mode = (create::CreateMode) GET_DATA(ID_OI_MODE);
+      if (modeReportWorkaround) {
+        mode = (create::CreateMode) (GET_DATA(ID_OI_MODE) - 1);
+      } else {
+        mode = (create::CreateMode) GET_DATA(ID_OI_MODE);
+      }
     }
+
     return mode;
   }
 
