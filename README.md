@@ -1,3 +1,26 @@
+## libcreate (foxy) - 3.1.0-1
+
+The packages in the `libcreate` repository were released into the `foxy` distro by running `/usr/bin/bloom-release -r foxy -t foxy libcreate` on `Tue, 09 May 2023 21:51:41 -0000`
+
+The `libcreate` package was released.
+
+Version of package(s) in repository `libcreate`:
+
+- upstream repository: https://github.com/AutonomyLab/libcreate.git
+- release repository: unknown
+- rosdistro version: `null`
+- old version: `null`
+- new version: `3.1.0-1`
+
+Versions of tools used:
+
+- bloom version: `0.11.2`
+- catkin_pkg version: `0.5.2`
+- rosdep version: `0.22.2`
+- rosdistro version: `0.9.0`
+- vcstools version: `0.1.42`
+
+
 ## libcreate (noetic) - 3.0.0-1
 
 The packages in the `libcreate` repository were released into the `noetic` distro by running `/usr/bin/bloom-release -r noetic libcreate` on `Thu, 07 Apr 2022 00:29:19 -0000`
