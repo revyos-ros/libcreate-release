@@ -1,0 +1,52 @@
+From 2ed87fa2bcf6e6f9819387a7596d0144030aef7a Mon Sep 17 00:00:00 2001
+From: Zheng Junjie <zhengjunjie@iscas.ac.cn>
+Date: Fri, 7 Jun 2024 15:16:53 +0800
+Subject: [PATCH] add Add-miss-string.patch
+
+---
+ debian/patches/Add-miss-string.patch | 24 ++++++++++++++++++++++++
+ debian/patches/series                |  1 +
+ 2 files changed, 25 insertions(+)
+ create mode 100644 debian/patches/Add-miss-string.patch
+ create mode 100644 debian/patches/series
+
+diff --git a/debian/patches/Add-miss-string.patch b/debian/patches/Add-miss-string.patch
+new file mode 100644
+index 0000000..6d8adcb
+--- /dev/null
++++ b/debian/patches/Add-miss-string.patch
+@@ -0,0 +1,24 @@
++From 910c0ec78b2e26757bfed1a45f496141855cff45 Mon Sep 17 00:00:00 2001
++From: Zheng Junjie <zhengjunjie@iscas.ac.cn>
++Date: Fri, 7 Jun 2024 15:16:06 +0800
++Subject: [PATCH] Add miss <string>
++
++---
++ include/create/packet.h | 1 +
++ 1 file changed, 1 insertion(+)
++
++diff --git a/include/create/packet.h b/include/create/packet.h
++index d1e7928..60ff0f2 100644
++--- a/include/create/packet.h
+++++ b/include/create/packet.h
++@@ -32,6 +32,7 @@ POSSIBILITY OF SUCH DAMAGE.
++ #define CREATE_PACKET_H
++ 
++ #include <mutex>
+++#include <string>
++ 
++ namespace create {
++   class Packet {
++-- 
++2.41.0
++
+diff --git a/debian/patches/series b/debian/patches/series
+new file mode 100644
+index 0000000..58fa8eb
+--- /dev/null
++++ b/debian/patches/series
+@@ -0,0 +1 @@
++Add-miss-string.patch
+-- 
+2.41.0
+
