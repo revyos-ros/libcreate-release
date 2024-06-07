@@ -1,3 +1,26 @@
+## libcreate (humble) - 3.1.0-2
+
+The packages in the `libcreate` repository were released into the `humble` distro by running `/home/z572/gits/revyos-ros/venv/bin/bloom-release -r humble libcreate` on `Fri, 07 Jun 2024 07:19:05 -0000`
+
+The `libcreate` package was released.
+
+Version of package(s) in repository `libcreate`:
+
+- upstream repository: https://github.com/AutonomyLab/libcreate.git
+- release repository: https://github.com/revyos-ros/libcreate-release.git
+- rosdistro version: `3.1.0-2`
+- old version: `3.1.0-1`
+- new version: `3.1.0-2`
+
+Versions of tools used:
+
+- bloom version: `0.12.0`
+- catkin_pkg version: `1.0.0`
+- rosdep version: `0.22.2`
+- rosdistro version: `0.9.0`
+- vcstools version: `0.1.42`
+
+
 ## libcreate (iron) - 3.1.0-1
 
 The packages in the `libcreate` repository were released into the `iron` distro by running `/usr/bin/bloom-release -r iron -t iron libcreate` on `Sun, 21 May 2023 23:37:03 -0000`
