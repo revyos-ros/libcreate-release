@@ -1,4 +1,4 @@
-From 2ed87fa2bcf6e6f9819387a7596d0144030aef7a Mon Sep 17 00:00:00 2001
+From 6655f10a807d6319be1ae2ba681431f14d369401 Mon Sep 17 00:00:00 2001
 From: Zheng Junjie <zhengjunjie@iscas.ac.cn>
 Date: Fri, 7 Jun 2024 15:16:53 +0800
 Subject: [PATCH] add Add-miss-string.patch
@@ -48,5 +48,5 @@ index 0000000..58fa8eb
 @@ -0,0 +1 @@
 +Add-miss-string.patch
 -- 
-2.41.0
+2.45.2
 
